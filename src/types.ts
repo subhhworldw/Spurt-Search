@@ -17,6 +17,7 @@ export interface SearchResult {
   experimentalMethod?: string; // PDB
   chainCount?: number;   // PDB
   releaseDate?: string;
+  isCanonical?: boolean;
   sequence?: string;
   keywords?: string[];
   lineage?: string[];
@@ -24,6 +25,10 @@ export interface SearchResult {
   
   // Multi-db duplicate tracking
   mergedFrom?: SearchResult[];
+  
+  // Search Relevance Engine
+  score?: number;
+  ranking_factors?: string[];
 }
 
 export interface HistoryItem {

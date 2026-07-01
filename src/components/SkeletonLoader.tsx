@@ -2,6 +2,7 @@ import React from "react";
 import { motion } from "motion/react";
 
 interface SkeletonLoaderProps {
+  key?: React.Key;
   size?: "small" | "large";
 }
 

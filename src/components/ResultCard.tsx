@@ -16,6 +16,8 @@ import {
   Info,
   Eye,
   EyeOff,
+  FlaskConical,
+  Globe,
 } from "lucide-react";
 import { SearchResult } from "../types";
 import { motion, AnimatePresence } from "motion/react";
@@ -494,6 +496,32 @@ Provide ONLY the informative description. Avoid repetitive text, do not create a
                 ID: {result.id}
                 <InfoButton tipKey="result-card" />
               </span>
+              {/* Trust Signal Badges */}
+              {result.reviewed && (
+                <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-green-100 text-green-800 border border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800/50" aria-label="Curated Entry">
+                  <Check className="w-3 h-3" /> Curated
+                </span>
+              )}
+              {result.reviewed === false && result.database === 'uniprot' && (
+                <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-orange-100 text-orange-800 border border-orange-200 dark:bg-orange-900/30 dark:text-orange-400 dark:border-orange-800/50" aria-label="Unreviewed Entry">
+                  <AlertCircle className="w-3 h-3" /> Unreviewed
+                </span>
+              )}
+              {result.experimentalMethod && !result.experimentalMethod.toLowerCase().includes('model') && (
+                <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-blue-100 text-blue-800 border border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800/50" aria-label="Experimental Structure">
+                  <FlaskConical className="w-3 h-3" /> Experimental
+                </span>
+              )}
+              {result.experimentalMethod && result.experimentalMethod.toLowerCase().includes('model') && (
+                <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-orange-100 text-orange-800 border border-orange-200 dark:bg-orange-900/30 dark:text-orange-400 dark:border-orange-800/50" aria-label="Computational Model">
+                  <AlertCircle className="w-3 h-3" /> Computational Model
+                </span>
+              )}
+              {result.isCanonical && (
+                <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-indigo-100 text-indigo-800 border border-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-400 dark:border-indigo-800/50" aria-label="Canonical Isoform">
+                  <Layers className="w-3 h-3" /> Canonical Isoform
+                </span>
+              )}
             </div>
 
             <h3 className="result-title text-base sm:text-lg font-bold text-neutral-950 dark:text-white tracking-tight leading-snug flex items-center gap-2">
@@ -510,6 +538,15 @@ Provide ONLY the informative description. Avoid repetitive text, do not create a
                 <InfoButton tipKey="deep-link" />
               </div>
             </h3>
+
+            {/* Metadata (Release Date) */}
+            <div className="mt-2 flex flex-wrap items-center gap-4">
+              {result.releaseDate && (
+                <div className="text-[10px] font-mono text-neutral-500 dark:text-neutral-400">
+                  Updated: {result.releaseDate}
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
@@ -936,7 +973,7 @@ Provide ONLY the informative description. Avoid repetitive text, do not create a
 
       {/* Card Action footer / accordion toggles */}
       <div className="mt-4 flex items-center justify-between gap-2.5 border-t border-brand-border/30 pt-3.5">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {/* Card Expansion toggles */}
           <button
             onClick={() => setIsDetailsExpanded(!isDetailsExpanded)}
@@ -949,6 +986,17 @@ Provide ONLY the informative description. Avoid repetitive text, do not create a
               <ChevronDown className="w-3.5 h-3.5" />
             )}
           </button>
+
+          {result.database === 'uniprot' && result.isCanonical && (
+            <button
+              onClick={() => alert("Alternative isoforms data would fetch here from UniProt REST API.")}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 dark:bg-indigo-900/20 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 border border-indigo-200 dark:border-indigo-800 rounded-lg text-xs font-bold text-indigo-700 dark:text-indigo-400 cursor-pointer transition-colors"
+            >
+              <Layers className="w-3.5 h-3.5" />
+              <span>View Alternative Isoforms</span>
+              <ChevronDown className="w-3.5 h-3.5" />
+            </button>
+          )}
 
           {!isSummaryOpen ? (
             <button

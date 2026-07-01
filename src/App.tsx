@@ -34,6 +34,17 @@ import {
   decryptHistory,
 } from "./utils/security";
 import {
+  normalizeGeneSymbol,
+  expandQuerySynonyms,
+  classifyInputType,
+  handleTypoCorrection
+} from './utils/queryProcessor';
+import {
+  calculateScore,
+  sortResultsByScore,
+  consolidateDuplicates
+} from './utils/scoring';
+import {
   Info,
   HelpCircle,
   FlaskConical,
@@ -49,6 +60,7 @@ import {
   Layers,
   History,
   Sparkles,
+  ExternalLink,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -612,9 +624,11 @@ export default function App() {
   };
 
   // Helper to append progressive results and run a cross-database deduplication check
-  const appendProgressiveResults = (newHits: SearchResult[]) => {
+  const appendProgressiveResults = (newHits: SearchResult[], queryText: string = "") => {
+    const scoredHits = newHits.map(hit => calculateScore(hit, queryText));
+    
     setResults((prev) => {
-      const combined = [...prev, ...newHits];
+      const combined = [...prev, ...scoredHits];
 
       // Deduplicate case-sensitively by ID
       const uniqMap = new Map<string, SearchResult>();
@@ -630,7 +644,8 @@ export default function App() {
           }
         }
       });
-      return Array.from(uniqMap.values());
+      
+      return sortResultsByScore(Array.from(uniqMap.values()), queryText);
     });
   };
 
@@ -729,7 +744,7 @@ export default function App() {
       if (hits.length > 0) {
         foundAnyHits = true;
       }
-      appendProgressiveResults(hits);
+      appendProgressiveResults(hits, sanitizedQueryText);
     };
 
     if (routedDb !== "all") {
@@ -1082,6 +1097,11 @@ export default function App() {
           suggestionsSet.add(k);
         }
       });
+      
+      const ourTypoCheck = handleTypoCorrection(sanitizedQueryText);
+      if (ourTypoCheck) {
+        suggestionsSet.add(ourTypoCheck);
+      }
 
       setSpellSuggestions(Array.from(suggestionsSet).slice(0, 5));
     }
@@ -1600,7 +1620,7 @@ export default function App() {
                   Dismiss Alert & Reset Input
                 </button>
               </motion.div>
-            ) : searchStatus === "notfound" ? (
+            ) : searchStatus === "notfound" || (searchStatus === "searched" && results.length === 0 && !isBatchMode) ? (
               <motion.div
                 key="notfound"
                 initial={{ scale: 0.95, opacity: 0 }}
@@ -1609,31 +1629,16 @@ export default function App() {
                 transition={{ duration: 0.3 }}
                 className="no-results flex flex-col items-center justify-center p-12 bg-brand-secondary border border-brand-border rounded-2xl text-center shadow-2xs"
               >
-                <span className="text-4xl mb-3">🔍</span>
+                <AlertCircle className="w-10 h-10 text-orange-400 mb-3" />
                 <h3 className="text-base font-semibold text-brand-text dark:text-neutral-200">
-                  No database entries found
+                  No Direct Matches Found
                 </h3>
                 <p className="text-xs sm:text-sm text-brand-text-secondary dark:text-neutral-450 max-w-sm mt-1 mb-4">
-                  We couldn't locate matching records in GenBank, UniProt, or
-                  PDB. Check your spelling or try standard keys like{" "}
-                  <span
-                    className="font-bold cursor-pointer underline text-indigo-500"
-                    onClick={() => handleSearch("BRCA1", DEFAULT_ENABLED_DBS)}
-                  >
-                    BRCA1
-                  </span>{" "}
-                  or{" "}
-                  <span
-                    className="font-bold cursor-pointer underline text-indigo-500"
-                    onClick={() => handleSearch("TP53", DEFAULT_ENABLED_DBS)}
-                  >
-                    TP53
-                  </span>
-                  .
+                  We broadened the search to include computational models and removed organism filters, but still couldn't find an exact match.
                 </p>
 
                 {spellSuggestions.length > 0 && (
-                  <div className="flex flex-col items-center gap-3 bg-brand-bg/50 px-6 py-4 rounded-xl border border-brand-border/60">
+                  <div className="flex flex-col items-center gap-3 bg-brand-bg/50 px-6 py-4 rounded-xl border border-brand-border/60 mb-4 w-full max-w-md">
                     <span className="text-xs font-bold text-neutral-500 uppercase tracking-widest">
                       Did you mean:
                     </span>
@@ -1641,9 +1646,7 @@ export default function App() {
                       {spellSuggestions.map((sugg) => (
                         <button
                           key={sugg}
-                          onClick={() =>
-                            handleSearch(sugg, DEFAULT_ENABLED_DBS)
-                          }
+                          onClick={() => handleSearch(sugg, DEFAULT_ENABLED_DBS)}
                           className="px-3 py-1.5 bg-brand-bg hover:bg-indigo-50 dark:hover:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400 text-xs font-bold rounded-lg border border-indigo-200 dark:border-indigo-800/50 cursor-pointer transition-colors"
                         >
                           {sugg}
@@ -1652,6 +1655,19 @@ export default function App() {
                     </div>
                   </div>
                 )}
+                
+                <div className="flex flex-col sm:flex-row gap-3 w-full max-w-md mt-2">
+                  <a href="https://www.ncbi.nlm.nih.gov/gene/" target="_blank" rel="noreferrer" className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2 bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-neutral-700 dark:text-neutral-300 rounded-lg text-xs font-bold transition-colors">
+                    Search NCBI Gene <ExternalLink className="w-3 h-3" />
+                  </a>
+                  <a href="https://www.uniprot.org/" target="_blank" rel="noreferrer" className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2 bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-neutral-700 dark:text-neutral-300 rounded-lg text-xs font-bold transition-colors">
+                    Search UniProt <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+                
+                <button onClick={() => alert("We'll email you when this record is added.")} className="mt-4 px-4 py-2 text-indigo-600 hover:text-indigo-500 text-xs font-bold cursor-pointer">
+                  Save Search & Notify Me
+                </button>
               </motion.div>
             ) : isBatchMode ? (
               /* TABULAR BATCH RESULTS RENDER (Tier 3) */

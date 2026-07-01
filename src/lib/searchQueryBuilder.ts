@@ -147,8 +147,14 @@ export function buildNCBIQuery(parsed: ParsedQuery): string {
   }
 
   const base = searchItems.join(" OR ");
-  const org = parsed.organism ? ` AND "${parsed.organism}"[Organism]` : "";
-  return `(${base})${org}`;
+  // Strategy 1: exact organism filter (default to Homo sapiens)
+  const org = parsed.organism ? ` AND "${parsed.organism}"[Organism]` : ` AND "Homo sapiens"[Organism]`;
+  
+  // Strategy 2 & 3: exclude predicted/computational, prefer mRNA/cDNA
+  const excludePredicted = ` NOT predicted[Title]`;
+  const preferMrna = ` AND biomol_mrna[PROP]`;
+  
+  return `(${base})${org}${excludePredicted}${preferMrna}`;
 }
 
 export function buildUniProtQuery(parsed: ParsedQuery): string {
@@ -174,10 +180,16 @@ export function buildUniProtQuery(parsed: ParsedQuery): string {
     (t) => `(gene_exact:"${t}" OR protein_name:"${t}" OR keyword:"${t}")`,
   );
   const base = termQueries.join(" OR ");
+  
+  // Strategy 1: Swiss-Reviewed status = True
+  const reviewed = `(reviewed:true)`;
+  
+  // Strategy 3: Species tax_id filter (9606 for human unless specified)
   const org = parsed.organism
-    ? ` AND (organism_name:"${parsed.organism}")`
-    : "";
-  return `(${base})${org}`;
+    ? `(organism_name:"${parsed.organism}")`
+    : `(organism_id:9606)`;
+    
+  return `(${base}) AND ${org} AND ${reviewed}`;
 }
 
 export function buildPDBQuery(parsed: ParsedQuery): any {

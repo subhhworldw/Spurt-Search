@@ -1,18 +1,18 @@
-import React, { Component, ErrorInfo, ReactNode } from "react";
+import * as React from "react";
 import { AlertTriangle, RefreshCw } from "lucide-react";
 
 interface Props {
-  children?: ReactNode;
-  fallback?: ReactNode;
+  children?: React.ReactNode;
+  fallback?: React.ReactNode;
 }
 
 interface State {
   hasError: boolean;
   error: Error | null;
-  errorInfo: ErrorInfo | null;
+  errorInfo: React.ErrorInfo | null;
 }
 
-export default class ErrorBoundary extends Component<Props, State> {
+export default class ErrorBoundary extends React.Component<Props, State> {
   public state: State = {
     hasError: false,
     error: null,
@@ -24,7 +24,7 @@ export default class ErrorBoundary extends Component<Props, State> {
     return { hasError: true, error, errorInfo: null };
   }
 
-  public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+  public componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error("Uncaught error in ErrorBoundary:", error, errorInfo);
     this.setState({ errorInfo });
     // In a real app, log to Sentry/Datadog here.
